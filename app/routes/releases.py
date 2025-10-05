@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db import get_db
@@ -8,19 +8,32 @@ router = APIRouter()
 
 
 class ReleaseIn(BaseModel):
-    suggestion_id: int
+    suggestion_id: int | None = None
     canary_percent: int = 10  # 0..100
 
 
+from app.services.canary import check_canary_and_maybe_rollback
+
+
 @router.post("/{prompt_id}/release")
-def release_prompt(prompt_id: int = Path(..., gt=0), payload: ReleaseIn = None, db: Session = Depends(get_db)):
+def release_prompt(prompt_id: int = Path(..., gt=0), payload: ReleaseIn = None, db: Session = Depends(get_db), background: BackgroundTasks = None):
     p = db.query(models.Prompt).filter(models.Prompt.id == prompt_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="prompt not found")
 
-    s = db.query(models.Suggestion).filter(models.Suggestion.id == payload.suggestion_id).first()
-    if not s or s.prompt_id != prompt_id:
-        raise HTTPException(status_code=400, detail="suggestion invalid for this prompt")
+    # Determine suggestion: use provided id or latest suggestion for this prompt
+    s = None
+    if payload.suggestion_id:
+        s = db.query(models.Suggestion).filter(models.Suggestion.id == payload.suggestion_id).first()
+        if not s or s.prompt_id != prompt_id:
+            raise HTTPException(status_code=400, detail="suggestion invalid for this prompt")
+    else:
+        s = (db.query(models.Suggestion)
+                .filter(models.Suggestion.prompt_id == prompt_id)
+                .order_by(models.Suggestion.id.desc())
+                .first())
+        if not s:
+            raise HTTPException(status_code=400, detail="no suggestions exist for this prompt")
 
     # find or create release row
     rel = (db.query(models.PromptRelease)
@@ -46,6 +59,11 @@ def release_prompt(prompt_id: int = Path(..., gt=0), payload: ReleaseIn = None, 
     rel.canary_version_id = v_canary.id
     rel.canary_percent = max(0, min(100, int(payload.canary_percent)))
     db.add(rel); db.commit()
+
+    # Kick off background canary check so it's evaluated soon after release
+    if background is not None:
+        background.add_task(check_canary_and_maybe_rollback, db, prompt_id, None, None)
+
     return {"prompt_id": prompt_id, "active_version": rel.active_version.version if rel.active_version else None,
             "canary_version": v_canary.version, "canary_percent": rel.canary_percent}
 
@@ -102,5 +120,11 @@ def status(prompt_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
             } for rb in recent_rb
         ]
     }
+
+
+@router.post("/{prompt_id}/check")
+def manual_check(prompt_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
+    result = check_canary_and_maybe_rollback(db, prompt_id)
+    return result
 
 

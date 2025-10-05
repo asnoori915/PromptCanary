@@ -2,7 +2,8 @@ from pydantic import BaseModel
 from typing import Optional
 
 class AnalyzeIn(BaseModel):
-    prompt: str
+    prompt: Optional[str] = None
+    prompt_id: Optional[int] = None
     response: Optional[str] = None
     model_name: Optional[str] = None
 

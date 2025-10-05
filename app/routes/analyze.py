@@ -11,11 +11,18 @@ router = APIRouter()
 
 @router.post("", response_model=AnalyzeOut)
 def analyze(payload: AnalyzeIn, db: Session = Depends(get_db)):
-    if not payload.prompt or not payload.prompt.strip():
-        raise HTTPException(status_code=422, detail="prompt is required")
+    if not payload.prompt_id and not (payload.prompt and payload.prompt.strip()):
+        raise HTTPException(status_code=422, detail="prompt or prompt_id is required")
 
-    prompt_row = models.Prompt(text=payload.prompt.strip())
-    db.add(prompt_row); db.flush()
+    if payload.prompt_id:
+        prompt_row = db.query(models.Prompt).filter(models.Prompt.id == payload.prompt_id).first()
+        if not prompt_row:
+            raise HTTPException(status_code=404, detail="prompt_id not found")
+        base_text = prompt_row.text
+    else:
+        prompt_row = models.Prompt(text=(payload.prompt or "").strip())
+        db.add(prompt_row); db.flush()
+        base_text = prompt_row.text
 
     response_row = None
     if payload.response and payload.response.strip():
@@ -29,8 +36,8 @@ def analyze(payload: AnalyzeIn, db: Session = Depends(get_db)):
     # Determine which prompt text to evaluate against (active vs canary)
     chosen_text, is_canary, version_id = choose_prompt_text(db, prompt_row.id)
 
-    h = heuristic_scores(chosen_text or payload.prompt, payload.response)
-    judge = judge_prompt(chosen_text or payload.prompt, payload.response)
+    h = heuristic_scores(chosen_text or base_text, payload.response)
+    judge = judge_prompt(chosen_text or base_text, payload.response)
     overall = round((h["length_score"] + h["clarity_score"] + h["toxicity_score"]) / 3, 3)
 
     eval_row = models.Evaluation(

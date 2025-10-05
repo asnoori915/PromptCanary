@@ -3,7 +3,16 @@ from app.db import Base, engine
 from app import models   # must be before create_all
 from app.routes import analyze, optimize, history, feedback, report, releases
 
-app = FastAPI(title="PromptPilot", version="0.3.0")
+app = FastAPI(
+    title="PromptPilot",
+    version="0.3.0",
+    docs_url="/swagger",     # interactive Swagger UI
+    redoc_url="/docs",       # cleaner ReDoc
+    swagger_ui_parameters={
+        "defaultModelsExpandDepth": -1,  # hide schemas panel
+        "defaultModelExpandDepth": -1,   # collapse examples
+    },
+)
 
 Base.metadata.create_all(bind=engine)
 
