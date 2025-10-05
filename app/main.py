@@ -1,11 +1,10 @@
 from fastapi import FastAPI
 from app.db import Base, engine
-from app import models                    # <-- IMPORTANT: import models before create_all
-from app.routes import analyze, optimize, history
+from app import models   # must be before create_all
+from app.routes import analyze, optimize, history, feedback, report
 
-app = FastAPI(title="PromptPilot", version="0.1.0")
+app = FastAPI(title="PromptPilot", version="0.3.0")
 
-# Create tables now that models are imported
 Base.metadata.create_all(bind=engine)
 
 @app.get("/health")
@@ -15,3 +14,5 @@ def health():
 app.include_router(analyze.router,  prefix="/analyze",  tags=["analyze"])
 app.include_router(optimize.router, prefix="/optimize", tags=["optimize"])
 app.include_router(history.router,  prefix="/history",  tags=["history"])
+app.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
+app.include_router(report.router,   prefix="/report",   tags=["report"])

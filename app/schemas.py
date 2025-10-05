@@ -16,3 +16,19 @@ class EvaluationOut(BaseModel):
 class AnalyzeOut(BaseModel):
     prompt_id: int
     evaluation: EvaluationOut
+
+class FeedbackIn(BaseModel):
+    prompt_id: int
+    response_id: Optional[int] = None
+    rating: int  # 1..5
+    comment: Optional[str] = None
+
+class FeedbackAck(BaseModel):
+    ok: bool
+
+class ReportOut(BaseModel):
+    window_days: int
+    counts: dict
+    scores: dict
+    improvement: dict
+    feedback: dict
