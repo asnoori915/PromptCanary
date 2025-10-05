@@ -5,6 +5,7 @@ from app import models
 from app.schemas import AnalyzeIn, AnalyzeOut, EvaluationOut
 from app.services.scoring import heuristic_scores
 from app.services.llm import judge_prompt
+from app.services.router import choose_prompt_text
 
 router = APIRouter()
 
@@ -25,8 +26,11 @@ def analyze(payload: AnalyzeIn, db: Session = Depends(get_db)):
         )
         db.add(response_row); db.flush()
 
-    h = heuristic_scores(payload.prompt, payload.response)
-    judge = judge_prompt(payload.prompt, payload.response)
+    # Determine which prompt text to evaluate against (active vs canary)
+    chosen_text, is_canary, version_id = choose_prompt_text(db, prompt_row.id)
+
+    h = heuristic_scores(chosen_text or payload.prompt, payload.response)
+    judge = judge_prompt(chosen_text or payload.prompt, payload.response)
     overall = round((h["length_score"] + h["clarity_score"] + h["toxicity_score"]) / 3, 3)
 
     eval_row = models.Evaluation(
@@ -36,7 +40,8 @@ def analyze(payload: AnalyzeIn, db: Session = Depends(get_db)):
         length_score=h["length_score"],
         toxicity_score=h["toxicity_score"],
         overall_score=overall,
-        notes=judge.get("notes","")
+        notes=judge.get("notes",""),
+        is_canary=is_canary
     )
     db.add(eval_row); db.commit()
 

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app import models
 from app.services.llm import judge_prompt
+import random
 
 def compute_report(db: Session, window_days: int = 30, max_compare: int = 20) -> dict:
     """
@@ -63,6 +64,19 @@ def compute_report(db: Session, window_days: int = 30, max_compare: int = 20) ->
 
     win_rate = (wins / total) if total else 0.0
 
+    # canary metrics: win-rate and rollback count in window
+    rb_count = (db.query(models.RollbackEvent)
+                  .filter(models.RollbackEvent.created_at >= start)
+                  .count())
+
+    # naive canary win-rate from evaluations marked is_canary vs not for recent prompts
+    # We compare average overall_score per prompt between active (non-canary) and canary within window
+    canary_avg = db.query(func.avg(models.Evaluation.overall_score)).\
+        filter(models.Evaluation.created_at >= start, models.Evaluation.is_canary == True).scalar() or 0.0
+    active_avg = db.query(func.avg(models.Evaluation.overall_score)).\
+        filter(models.Evaluation.created_at >= start, models.Evaluation.is_canary == False).scalar() or 0.0
+    canary_win_rate = 1.0 if canary_avg > active_avg else (0.0 if canary_avg < active_avg else 0.5)
+
     return {
         "window_days": window_days,
         "counts": {
@@ -79,6 +93,12 @@ def compute_report(db: Session, window_days: int = 30, max_compare: int = 20) ->
         "improvement": {
             "optimized_vs_original_win_rate": round(win_rate, 3),
             "sampled": total
+        },
+        "canary": {
+            "avg_canary_overall": round(float(canary_avg), 3),
+            "avg_active_overall": round(float(active_avg), 3),
+            "naive_canary_win_rate": round(float(canary_win_rate), 3),
+            "rollbacks_in_window": int(rb_count),
         },
         "feedback": {
             "avg_rating": round(avg_rating, 3),

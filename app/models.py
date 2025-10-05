@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, String, Float
+from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, String, Float, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db import Base
@@ -42,6 +42,7 @@ class Evaluation(Base):
     overall_score = Column(Float)
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_canary = Column(Boolean, nullable=False, server_default="0")
 
     prompt = relationship("Prompt", back_populates="evaluations")
     response = relationship("Response", back_populates="evaluations")
@@ -68,3 +69,44 @@ class Feedback(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     prompt = relationship("Prompt", back_populates="feedback")
+
+
+class PromptVersion(Base):
+    __tablename__ = "prompt_versions"
+    id = Column(Integer, primary_key=True, index=True)
+    prompt_id = Column(Integer, ForeignKey("prompts.id", ondelete="CASCADE"), nullable=False)
+    version = Column(Integer, nullable=False)
+    text = Column(Text, nullable=False)
+    is_active = Column(Boolean, nullable=False, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    prompt = relationship("Prompt", backref="versions")
+
+
+class PromptRelease(Base):
+    __tablename__ = "prompt_releases"
+    id = Column(Integer, primary_key=True, index=True)
+    prompt_id = Column(Integer, ForeignKey("prompts.id", ondelete="CASCADE"), nullable=False)
+    active_version_id = Column(Integer, ForeignKey("prompt_versions.id", ondelete="SET NULL"))
+    canary_version_id = Column(Integer, ForeignKey("prompt_versions.id", ondelete="SET NULL"))
+    canary_percent = Column(Integer, nullable=False, server_default="0")  # 0..100
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    prompt = relationship("Prompt")
+    active_version = relationship("PromptVersion", foreign_keys=[active_version_id])
+    canary_version = relationship("PromptVersion", foreign_keys=[canary_version_id])
+
+
+class RollbackEvent(Base):
+    __tablename__ = "rollback_events"
+    id = Column(Integer, primary_key=True, index=True)
+    prompt_id = Column(Integer, ForeignKey("prompts.id", ondelete="CASCADE"), nullable=False)
+    from_version_id = Column(Integer, ForeignKey("prompt_versions.id", ondelete="SET NULL"))
+    to_version_id = Column(Integer, ForeignKey("prompt_versions.id", ondelete="SET NULL"))
+    reason = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    prompt = relationship("Prompt")
+    from_version = relationship("PromptVersion", foreign_keys=[from_version_id])
+    to_version = relationship("PromptVersion", foreign_keys=[to_version_id])
