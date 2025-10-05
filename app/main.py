@@ -4,7 +4,7 @@ from app import models   # must be before create_all
 from app.routes import analyze, optimize, history, feedback, report, releases
 
 app = FastAPI(
-    title="PromptPilot",
+    title="PromptCanary",
     version="0.3.0",
     docs_url="/swagger",     # interactive Swagger UI
     redoc_url="/docs",       # cleaner ReDoc
