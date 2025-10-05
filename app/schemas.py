@@ -1,35 +1,78 @@
+"""
+PYDANTIC SCHEMAS - Request/response data validation
+
+This file defines the data structures for API requests and responses using Pydantic.
+These schemas provide:
+1. Input validation for API endpoints
+2. Type safety and documentation
+3. Automatic JSON serialization/deserialization
+4. Clear API contracts
+
+Each schema corresponds to specific API endpoints and their expected data formats.
+"""
+
 from pydantic import BaseModel
 from typing import Optional
 
 class AnalyzeIn(BaseModel):
-    prompt: Optional[str] = None
-    prompt_id: Optional[int] = None
-    response: Optional[str] = None
-    model_name: Optional[str] = None
+    """
+    Input schema for the analyze endpoint.
+    
+    Either provide prompt text directly OR reference an existing prompt by ID.
+    Response and model_name are optional for cases where you already have the response.
+    """
+    prompt: Optional[str] = None  # Direct prompt text
+    prompt_id: Optional[int] = None  # Reference to existing prompt
+    response: Optional[str] = None  # Optional response (if already generated)
+    model_name: Optional[str] = None  # Which LLM generated the response
 
 class EvaluationOut(BaseModel):
-    clarity_score: float
-    length_score: float
-    toxicity_score: float
-    overall_score: float
-    notes: str
+    """
+    Output schema for evaluation scores.
+    
+    All scores are on a 0-1 scale where higher is better.
+    Notes contain LLM-generated improvement suggestions.
+    """
+    clarity_score: float  # How clear/unambiguous the prompt is
+    length_score: float   # Optimal length scoring
+    toxicity_score: float # Content safety scoring
+    overall_score: float  # Combined/weighted overall score
+    notes: str  # LLM-generated improvement suggestions
 
 class AnalyzeOut(BaseModel):
-    prompt_id: int
-    evaluation: EvaluationOut
+    """
+    Output schema for the analyze endpoint.
+    
+    Returns the prompt_id and the complete evaluation results.
+    """
+    prompt_id: int  # The prompt that was evaluated
+    evaluation: EvaluationOut  # The evaluation scores and notes
 
 class FeedbackIn(BaseModel):
-    prompt_id: int
-    response_id: Optional[int] = None
-    rating: int  # 1..5
-    comment: Optional[str] = None
+    """
+    Input schema for human feedback submission.
+    
+    Requires a prompt_id and rating. Response_id and comment are optional.
+    """
+    prompt_id: int  # Which prompt this feedback is for
+    response_id: Optional[int] = None  # Optional: specific response being rated
+    rating: int  # Human rating 1-5 (1=bad, 5=excellent)
+    comment: Optional[str] = None  # Optional human comment
 
 class FeedbackAck(BaseModel):
-    ok: bool
+    """
+    Simple acknowledgment that feedback was received and stored.
+    """
+    ok: bool  # True if feedback was successfully stored
 
 class ReportOut(BaseModel):
-    window_days: int
-    counts: dict
-    scores: dict
-    improvement: dict
-    feedback: dict
+    """
+    Output schema for the analytics report endpoint.
+    
+    Contains comprehensive system-wide metrics and statistics.
+    """
+    window_days: int  # Time window for the report
+    counts: dict  # Entity counts (prompts, responses, evaluations, etc.)
+    scores: dict  # Average scores across all evaluations
+    improvement: dict  # Improvement metrics and win-rates
+    feedback: dict  # Human feedback statistics
