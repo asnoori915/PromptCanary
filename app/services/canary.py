@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app import models
 from app.config import CANARY_MIN_SAMPLES, CANARY_THRESHOLD, WEBHOOK_URL
+from app.utils import safe_db_commit
 
 
 def _post_webhook(message: dict) -> None:
@@ -127,7 +128,7 @@ def check_canary_and_maybe_rollback(db: Session, prompt_id: int,
         # Stop the canary (set percentage to 0, clear canary version)
         rel.canary_version_id = None
         rel.canary_percent = 0
-        db.add(evt); db.add(rel); db.commit()
+        safe_db_commit(db, evt, rel)
 
         # STEP 5: Send webhook notification
         _post_webhook({

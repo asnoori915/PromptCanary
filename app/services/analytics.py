@@ -17,9 +17,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app import models
 from app.services.llm import judge_prompt
+from app.services.cache_service import cache_service, cached
+from app.config import DEFAULT_WINDOW_DAYS, DEFAULT_MAX_COMPARE
 import random
 
-def compute_report(db: Session, window_days: int = 30, max_compare: int = 20) -> dict:
+@cached(ttl=900, key_prefix="analytics_report")
+def compute_report(db: Session, window_days: int = DEFAULT_WINDOW_DAYS, max_compare: int = DEFAULT_MAX_COMPARE) -> dict:
     """
     Compute comprehensive analytics report for all prompts over a time window.
     

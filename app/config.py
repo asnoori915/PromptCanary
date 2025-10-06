@@ -13,6 +13,7 @@ All settings can be overridden via environment variables or .env file.
 
 import os
 from dotenv import load_dotenv
+from app.utils import Constants
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -27,6 +28,14 @@ DATABASE_URL = _raw_database_url or DEFAULT_DATABASE_URL
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY","")  # For LLM evaluation and optimization
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")  # For rollback notifications
 
-# STEP 3: Canary deployment settings
-CANARY_MIN_SAMPLES = int(os.getenv("CANARY_MIN_SAMPLES", "30"))  # Minimum samples before auto-rollback
-CANARY_THRESHOLD = float(os.getenv("CANARY_THRESHOLD", "0.55"))  # Performance threshold (0.55 = 55% of active performance)
+# STEP 3: Canary deployment settings (using constants from utils)
+CANARY_MIN_SAMPLES = int(os.getenv("CANARY_MIN_SAMPLES", str(Constants.DEFAULT_MIN_SAMPLES)))
+CANARY_THRESHOLD = float(os.getenv("CANARY_THRESHOLD", str(Constants.DEFAULT_CANARY_THRESHOLD)))
+
+# STEP 4: Rate limiting settings
+RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", str(Constants.DEFAULT_RATE_LIMIT)))
+RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", str(Constants.RATE_LIMIT_WINDOW)))
+
+# STEP 5: Analytics settings
+DEFAULT_WINDOW_DAYS = int(os.getenv("DEFAULT_WINDOW_DAYS", str(Constants.DEFAULT_WINDOW_DAYS)))
+DEFAULT_MAX_COMPARE = int(os.getenv("DEFAULT_MAX_COMPARE", str(Constants.DEFAULT_MAX_COMPARE)))

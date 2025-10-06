@@ -10,7 +10,10 @@ It complements the LLM-based evaluation in llm.py by providing:
 These scores are combined with LLM scores for comprehensive evaluation.
 """
 
-def heuristic_scores(prompt: str, response: str | None = None) -> dict:
+from typing import Dict, Optional
+from app.utils import Constants, round_score
+
+def heuristic_scores(prompt: str, response: Optional[str] = None) -> Dict[str, float]:
     """
     Compute heuristic scores for a prompt using simple rules.
     
@@ -24,19 +27,19 @@ def heuristic_scores(prompt: str, response: str | None = None) -> dict:
     """
     # STEP 1: Length scoring - optimal around 40 words
     words = len(prompt.split())
-    length_score = max(0.0, min(1.0, 1 - abs(words - 40) / 60))  # peak near 40 words
+    length_score = max(0.0, min(1.0, 1 - abs(words - Constants.OPTIMAL_PROMPT_LENGTH) / 60))
     
     # STEP 2: Clarity scoring - penalize vague terms
     vague_terms = ["maybe","sort of","kind of","roughly","approximately"]
     vagueness = sum(prompt.lower().count(t) for t in vague_terms)
-    clarity_score = max(0.0, 1.0 - 0.15 * vagueness)
+    clarity_score = max(0.0, 1.0 - Constants.VAGUENESS_PENALTY * vagueness)
     
     # STEP 3: Toxicity scoring - placeholder for content safety
     # TODO: Could add actual content filtering here
     toxicity_score = 1.0
     
     return {
-        "length_score": round(length_score,3),
-        "clarity_score": round(clarity_score,3),
-        "toxicity_score": round(toxicity_score,3)
+        "length_score": round_score(length_score),
+        "clarity_score": round_score(clarity_score),
+        "toxicity_score": round_score(toxicity_score)
     }

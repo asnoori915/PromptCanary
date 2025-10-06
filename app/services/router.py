@@ -13,6 +13,7 @@ import random
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from app import models
+from app.utils import safe_db_commit, safe_db_flush
 
 
 def get_or_init_release(db: Session, prompt_id: int) -> Optional[models.PromptRelease]:
@@ -40,11 +41,12 @@ def get_or_init_release(db: Session, prompt_id: int) -> Optional[models.PromptRe
     
     # STEP 2: Create initial version 1 from original prompt
     v1 = models.PromptVersion(prompt_id=prompt_id, version=1, text=p.text, is_active=True)
-    db.add(v1); db.flush()
+    safe_db_flush(db, v1)
     
     # STEP 3: Create initial release with 0% canary
     rel = models.PromptRelease(prompt_id=prompt_id, active_version_id=v1.id, canary_percent=0)
-    db.add(rel); db.commit(); db.refresh(rel)
+    safe_db_commit(db, rel)
+    db.refresh(rel)
     return rel
 
 

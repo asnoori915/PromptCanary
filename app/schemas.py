@@ -11,8 +11,9 @@ These schemas provide:
 Each schema corresponds to specific API endpoints and their expected data formats.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 from typing import Optional
+from app.utils import Constants
 
 class AnalyzeIn(BaseModel):
     """
@@ -21,10 +22,16 @@ class AnalyzeIn(BaseModel):
     Either provide prompt text directly OR reference an existing prompt by ID.
     Response and model_name are optional for cases where you already have the response.
     """
-    prompt: Optional[str] = None  # Direct prompt text
-    prompt_id: Optional[int] = None  # Reference to existing prompt
-    response: Optional[str] = None  # Optional response (if already generated)
-    model_name: Optional[str] = None  # Which LLM generated the response
+    prompt: Optional[str] = Field(None, min_length=1, max_length=Constants.MAX_PROMPT_LENGTH, description="Direct prompt text")
+    prompt_id: Optional[int] = Field(None, gt=0, description="Reference to existing prompt")
+    response: Optional[str] = Field(None, max_length=Constants.MAX_RESPONSE_LENGTH, description="Optional response (if already generated)")
+    model_name: Optional[str] = Field(None, max_length=Constants.MAX_MODEL_NAME_LENGTH, description="Which LLM generated the response")
+    
+    @validator('prompt_id', always=True)
+    def validate_prompt_or_id(cls, v, values):
+        if not values.get('prompt') and not v:
+            raise ValueError('Either prompt or prompt_id must be provided')
+        return v
 
 class EvaluationOut(BaseModel):
     """
@@ -54,10 +61,10 @@ class FeedbackIn(BaseModel):
     
     Requires a prompt_id and rating. Response_id and comment are optional.
     """
-    prompt_id: int  # Which prompt this feedback is for
-    response_id: Optional[int] = None  # Optional: specific response being rated
-    rating: int  # Human rating 1-5 (1=bad, 5=excellent)
-    comment: Optional[str] = None  # Optional human comment
+    prompt_id: int = Field(..., gt=0, description="Which prompt this feedback is for")
+    response_id: Optional[int] = Field(None, gt=0, description="Optional: specific response being rated")
+    rating: int = Field(..., ge=1, le=5, description="Human rating 1-5 (1=bad, 5=excellent)")
+    comment: Optional[str] = Field(None, max_length=Constants.MAX_COMMENT_LENGTH, description="Optional human comment")
 
 class FeedbackAck(BaseModel):
     """

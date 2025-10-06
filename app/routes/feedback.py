@@ -17,10 +17,14 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app import models
 from app.schemas import FeedbackIn, FeedbackAck
+from app.utils import handle_db_errors, get_logger, safe_db_commit
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
 @router.post("", response_model=FeedbackAck)
+@handle_db_errors
 def leave_feedback(payload: FeedbackIn, db: Session = Depends(get_db)):
     """
     Submit human feedback on a prompt or response.
@@ -45,11 +49,7 @@ def leave_feedback(payload: FeedbackIn, db: Session = Depends(get_db)):
         if not r or r.prompt_id != payload.prompt_id:
             raise HTTPException(status_code=400, detail="response_id invalid for this prompt")
 
-    # STEP 3: Validate rating is in valid range (1-5)
-    if payload.rating < 1 or payload.rating > 5:
-        raise HTTPException(status_code=422, detail="rating must be 1..5")
-
-    # STEP 4: Store the feedback
+    # STEP 3: Store the feedback
     # This creates the human validation data that drives decisions
     fb = models.Feedback(
         prompt_id=payload.prompt_id,
@@ -57,6 +57,5 @@ def leave_feedback(payload: FeedbackIn, db: Session = Depends(get_db)):
         rating=payload.rating,
         comment=(payload.comment or "").strip() or None
     )
-    db.add(fb)
-    db.commit()
+    safe_db_commit(db, fb)
     return FeedbackAck(ok=True)
