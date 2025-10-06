@@ -262,7 +262,7 @@ Contributions are welcome! Here's how to get started:
 
 ## Contact
 
-**Amir Paneer** - [GitHub](https://github.com/asnoori915)
+**Amir Noori** - [GitHub](https://github.com/asnoori915)
 
 Project Link: [https://github.com/asnoori915/PromptCanary](https://github.com/asnoori915/PromptCanary)
 
