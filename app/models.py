@@ -184,3 +184,46 @@ class RollbackEvent(Base):
     prompt = relationship("Prompt")
     from_version = relationship("PromptVersion", foreign_keys=[from_version_id])
     to_version = relationship("PromptVersion", foreign_keys=[to_version_id])
+
+
+class ModelEvaluation(Base):
+    """
+    ML evaluation results - stores comprehensive model comparison data.
+    
+    This table stores the results of testing prompts across multiple models
+    with real ML metrics like BLEU, ROUGE, and semantic similarity.
+    """
+    __tablename__ = "model_evaluations"
+    id = Column(Integer, primary_key=True, index=True)
+    prompt_id = Column(Integer, ForeignKey("prompts.id", ondelete="CASCADE"), nullable=False)
+    models_tested = Column(Integer, nullable=False)  # How many models were tested
+    best_model = Column(String(64))  # Which model performed best
+    avg_similarity = Column(Float)  # Average similarity between model outputs
+    total_latency_ms = Column(Integer)  # Total time for all model calls
+    results_json = Column(Text)  # Full comparison results as JSON
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    prompt = relationship("Prompt")
+
+
+class ModelResponse(Base):
+    """
+    Individual model responses - stores each model's output for a prompt.
+    
+    This allows us to track how each model performs on each prompt
+    and build up a dataset of model performance over time.
+    """
+    __tablename__ = "model_responses"
+    id = Column(Integer, primary_key=True, index=True)
+    evaluation_id = Column(Integer, ForeignKey("model_evaluations.id", ondelete="CASCADE"), nullable=False)
+    model_name = Column(String(64), nullable=False)  # Which model generated this
+    response_text = Column(Text, nullable=False)  # The actual response
+    latency_ms = Column(Integer)  # How long it took
+    input_tokens = Column(Integer)  # Tokens used for input
+    output_tokens = Column(Integer)  # Tokens generated
+    cost_usd = Column(Float)  # Cost in USD
+    success = Column(Boolean, nullable=False, server_default="1")  # Did it succeed?
+    error_message = Column(Text)  # Error if it failed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    evaluation = relationship("ModelEvaluation")

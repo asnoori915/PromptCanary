@@ -21,7 +21,7 @@ import uuid
 from collections import defaultdict
 from app.db import Base, engine
 from app import models   # must be imported before create_all to register tables
-from app.routes import analyze, optimize, history, feedback, report, releases
+from app.routes import analyze, optimize, history, feedback, report, releases, evaluation
 
 # Configure structured logging
 logging.basicConfig(
@@ -152,3 +152,4 @@ app.include_router(history.router,  prefix="/history",  tags=["history"])   # Hi
 app.include_router(feedback.router, prefix="/feedback", tags=["feedback"])  # Human feedback
 app.include_router(report.router,   prefix="/report",   tags=["report"])    # Analytics
 app.include_router(releases.router, prefix="/prompts",  tags=["releases"])  # Canary management
+app.include_router(evaluation.router, prefix="/evaluation", tags=["evaluation"])  # ML evaluation pipeline

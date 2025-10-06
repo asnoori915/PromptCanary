@@ -9,8 +9,15 @@ import json
 import hashlib
 from typing import Optional, Any, Dict, List
 from functools import wraps
-import redis
 from app.utils import get_logger, Constants
+
+# Optional Redis import
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    redis = None
 
 logger = get_logger(__name__)
 
@@ -24,6 +31,11 @@ class CacheService:
     
     def _connect(self):
         """Connect to Redis (graceful fallback if not available)."""
+        if not REDIS_AVAILABLE:
+            logger.info("Redis not installed, caching disabled")
+            self.redis_client = None
+            return
+            
         try:
             self.redis_client = redis.Redis(
                 host='localhost',

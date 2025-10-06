@@ -18,11 +18,16 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app import models
 from app.services.llm import optimize_prompt
+from app.services.smart_optimization import SmartOptimizationService
+from app.utils import handle_db_errors, get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
 @router.get("")
-def optimize(prompt_id: int = Query(..., gt=0), db: Session = Depends(get_db)):
+@handle_db_errors
+async def optimize(prompt_id: int = Query(..., gt=0), db: Session = Depends(get_db)):
     """
     Generate an optimized version of a prompt based on recent feedback.
     
@@ -34,25 +39,37 @@ def optimize(prompt_id: int = Query(..., gt=0), db: Session = Depends(get_db)):
     2. Calls LLM to rewrite the prompt better
     3. Stores the suggestion for potential canary release
     """
-    # STEP 1: Validate the prompt exists
-    prompt = db.query(models.Prompt).filter(models.Prompt.id == prompt_id).first()
-    if not prompt:
-        raise HTTPException(status_code=404, detail="prompt not found")
-
-    # STEP 2: Look at recent evaluation feedback to understand what needs improvement
-    # We get the most recent evaluation notes to understand what's wrong
-    last_eval = (db.query(models.Evaluation)
-                   .filter(models.Evaluation.prompt_id == prompt_id)
-                   .order_by(models.Evaluation.id.desc())
-                   .first())
-    notes = last_eval.notes if last_eval else "Improve clarity; add constraints and success criteria."
-
-    # STEP 3: Use LLM to generate an improved version
-    # This is where the AI "thinks" about how to make the prompt better
-    rewritten = optimize_prompt(prompt.text, notes)
-
-    # STEP 4: Store the suggestion for potential canary release
-    # The suggestion becomes available for testing via canary releases
-    s = models.Suggestion(prompt_id=prompt_id, suggested_text=rewritten, rationale=notes)
-    db.add(s); db.commit()
-    return {"prompt_id": prompt_id, "suggested_text": rewritten}
+    # Use the new smart optimization system
+    results = await SmartOptimizationService.smart_optimize_prompt(db, prompt_id)
+    
+    if results.get("success", False):
+        return {
+            "prompt_id": prompt_id,
+            "suggested_text": results["best_version"]["optimized_text"],
+            "improvement_score": results["best_version"]["improvement_score"],
+            "strategy_used": results["best_version"]["strategy"],
+            "reasoning": results["best_version"]["reasoning"],
+            "suggestion_id": results["suggestion_id"]
+        }
+    else:
+        # Fallback to old method if smart optimization fails
+        prompt = db.query(models.Prompt).filter(models.Prompt.id == prompt_id).first()
+        if not prompt:
+            raise HTTPException(status_code=404, detail="prompt not found")
+        
+        last_eval = (db.query(models.Evaluation)
+                       .filter(models.Evaluation.prompt_id == prompt_id)
+                       .order_by(models.Evaluation.id.desc())
+                       .first())
+        notes = last_eval.notes if last_eval else "Improve clarity; add constraints and success criteria."
+        
+        rewritten = optimize_prompt(prompt.text, notes)
+        s = models.Suggestion(prompt_id=prompt_id, suggested_text=rewritten, rationale=notes)
+        db.add(s); db.commit()
+        
+        return {
+            "prompt_id": prompt_id,
+            "suggested_text": rewritten,
+            "method": "fallback_optimization",
+            "suggestion_id": s.id
+        }
