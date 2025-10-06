@@ -33,7 +33,7 @@ router = APIRouter()
 
 @router.post("", response_model=AnalyzeOut)
 @handle_db_errors
-async def analyze(payload: AnalyzeIn, db: Session = Depends(get_db)):
+def analyze(payload: AnalyzeIn, db: Session = Depends(get_db)):
     """
     Analyze a prompt and its response, returning evaluation scores.
     

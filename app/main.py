@@ -21,7 +21,7 @@ import uuid
 from collections import defaultdict
 from app.db import Base, engine
 from app import models   # must be imported before create_all to register tables
-from app.routes import analyze, optimize, history, feedback, report, releases, evaluation
+from app.routes import analyze, optimize, history, feedback, report, releases, evaluation, evaluation_simple
 
 # Configure structured logging
 logging.basicConfig(
@@ -101,9 +101,11 @@ try:
     from alembic.config import Config
     alembic_cfg = Config("alembic.ini")
     command.upgrade(alembic_cfg, "head")
+    logger.info("Database initialized with Alembic migrations")
 except ImportError:
     # Alembic not installed, use create_all for development
     Base.metadata.create_all(bind=engine)
+    logger.info("Database initialized with create_all (Alembic not available)")
 except Exception as e:
     # Alembic failed, fallback to create_all
     logger.warning(f"Alembic migration failed, using create_all: {e}")
@@ -153,3 +155,4 @@ app.include_router(feedback.router, prefix="/feedback", tags=["feedback"])  # Hu
 app.include_router(report.router,   prefix="/report",   tags=["report"])    # Analytics
 app.include_router(releases.router, prefix="/prompts",  tags=["releases"])  # Canary management
 app.include_router(evaluation.router, prefix="/evaluation", tags=["evaluation"])  # ML evaluation pipeline
+app.include_router(evaluation_simple.router, prefix="/eval", tags=["eval-simple"])  # Simplified ML evaluation

@@ -25,7 +25,7 @@ router = APIRouter()
 
 @router.post("/{prompt_id}/evaluate")
 @handle_db_errors
-async def evaluate_prompt_models(
+def evaluate_prompt_models(
     prompt_id: int,
     models_to_test: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db)
@@ -47,10 +47,11 @@ async def evaluate_prompt_models(
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found")
     
-    # Run the evaluation
-    results = await ModelEvaluationService.run_complete_evaluation(
+    # Run the evaluation (simplified version for now)
+    import asyncio
+    results = asyncio.run(ModelEvaluationService.run_complete_evaluation(
         db, prompt_id, prompt.text, models_to_test
-    )
+    ))
     
     return results
 
@@ -78,7 +79,7 @@ def analyze_prompt_patterns(prompt_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{prompt_id}/smart-optimize")
 @handle_db_errors
-async def smart_optimize_prompt(prompt_id: int, db: Session = Depends(get_db)):
+def smart_optimize_prompt(prompt_id: int, db: Session = Depends(get_db)):
     """
     Generate optimized versions using data-driven insights.
     
@@ -96,8 +97,9 @@ async def smart_optimize_prompt(prompt_id: int, db: Session = Depends(get_db)):
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found")
     
-    # Run smart optimization
-    results = await SmartOptimizationService.smart_optimize_prompt(db, prompt_id)
+    # Run smart optimization (simplified version for now)
+    import asyncio
+    results = asyncio.run(SmartOptimizationService.smart_optimize_prompt(db, prompt_id))
     
     return results
 
